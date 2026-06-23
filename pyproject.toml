@@ -1,0 +1,16 @@
+[project]
+name = "ppk2-mcp"
+version = "0.1.0"
+description = "MCP server for the Nordic Power Profiler Kit II (PPK2) — current measurement and logic analyser over serial."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.28.0",
+    "ppk2-api>=0.9.2",
+    "pyserial>=3.5",
+]
+
+[tool.uv]
+# Application-style project: install the dependencies but don't build/install
+# this repo itself as a package. Run the server with `uv run ppk2_mcp_server.py`.
+package = false
