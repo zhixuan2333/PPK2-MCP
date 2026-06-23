@@ -2,15 +2,7 @@
   "mcpServers": {
     "ppk2": {
       "command": "uv",
-      "args": [
-        "run",
-        "--directory",
-        "/Users/zhixuan/code/PPK2-MCP",
-        "ppk2_mcp_server.py"
-      ],
-      "env": {
-        "PPK2_PORT": "/dev/cu.usbmodemDC3E14A7FA752"
-      }
+      "args": ["run", "ppk2_mcp_server.py"]
     }
   }
 }

@@ -13,48 +13,44 @@ client talks to the device only through these tools.
 ## Requirements
 
 - A PPK2 connected over USB
-- [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
+- [uv](https://docs.astral.sh/uv/) (the installer below will fetch it if missing)
 - Python ≥ 3.10 (uv will fetch one if needed)
+- [Claude Code](https://claude.com/claude-code) CLI (optional, for auto-registration)
 
-## Setup
-
-```bash
-uv sync        # create .venv and install dependencies from uv.lock
-```
-
-Find your PPK2's serial port:
+## One-shot install
 
 ```bash
-ls /dev/cu.usbmodem*     # macOS — the lower-numbered port is the control interface
-ls /dev/ttyACM*          # Linux
+git clone https://github.com/zhixuan2333/PPK2-MCP && cd PPK2-MCP
+./install.sh          # installs uv, syncs deps, registers the MCP server
+./install.sh --run    # ...and immediately launches Claude with a test prompt
 ```
 
-Run the server standalone (it speaks MCP over stdio, so this is mostly a smoke
-test — Ctrl-C to exit):
+`install.sh` registers the `ppk2` server with the Claude Code CLI (`claude mcp
+add`, user scope). The serial port is **autodetected** — no path to configure.
+Then in Claude:
+
+> Use the ppk2 MCP tools to check the PPK2: call `ppk2_status`, then configure
+> source mode at 3.3V, power the DUT on, measure current for 2 seconds, capture
+> the logic channels for 1 second, and finally power off and disconnect.
+
+## Manual setup
 
 ```bash
-PPK2_PORT=/dev/cu.usbmodemXXXX uv run ppk2_mcp_server.py
+uv sync     # create .venv and install dependencies from uv.lock
 ```
 
-## Use with Claude Code
+Run the server standalone (speaks MCP over stdio, so this is mostly a smoke
+test — Ctrl-C to exit). The PPK2 port is autodetected; override with `PPK2_PORT`
+if needed:
 
-`.mcp.json` in this repo registers the server for Claude Code. Update the
-`--directory` path and `PPK2_PORT` to match your machine:
-
-```json
-{
-  "mcpServers": {
-    "ppk2": {
-      "command": "uv",
-      "args": ["run", "--directory", "/abs/path/to/PPK2-MCP", "ppk2_mcp_server.py"],
-      "env": { "PPK2_PORT": "/dev/cu.usbmodemXXXX" }
-    }
-  }
-}
+```bash
+uv run ppk2_mcp_server.py
+# or pin a port:  PPK2_PORT=/dev/cu.usbmodemXXXX uv run ppk2_mcp_server.py
 ```
 
-Open Claude Code in this directory; it picks up `.mcp.json` automatically.
-Approve the project server (or run `/mcp`) and confirm it shows **connected**.
+`.mcp.json` in this repo also registers the server for any Claude Code session
+opened in this directory (autodetected port, no edits needed). Approve the
+project server (or run `/mcp`) and confirm it shows **connected**.
 
 ## Tools
 

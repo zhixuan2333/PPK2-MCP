@@ -90,18 +90,29 @@ STATE = Ppk2State()
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
-def _resolve_port(port: Optional[str]) -> Optional[str]:
-    """Pick a serial port: explicit arg > PPK2_PORT env > autodetect."""
+def _resolve_candidates(port: Optional[str]) -> list[str]:
+    """Ordered ports to try: explicit arg > PPK2_PORT env > autodetected.
+
+    The PPK2 exposes two CDC serial interfaces but only the control one answers
+    `get_modifiers()`, so autodetection returns *all* candidates (lowest-numbered
+    first, which is usually the control port) and the caller probes each.
+    """
     if port:
-        return port
+        return [port]
     env_port = os.environ.get("PPK2_PORT")
     if env_port:
-        return env_port
+        return [env_port]
     try:
         found = PPK2_API.list_devices()
     except Exception:
         found = []
-    return found[0] if found else None
+    return sorted(found)
+
+
+def _resolve_port(port: Optional[str]) -> Optional[str]:
+    """First candidate port (for status/display); None if nothing is found."""
+    candidates = _resolve_candidates(port)
+    return candidates[0] if candidates else None
 
 
 def _available_ports() -> list[str]:
@@ -137,19 +148,30 @@ def _open(port: str) -> PPK2_API:
 
 
 def _ensure_connected(port: Optional[str]) -> PPK2_API:
-    """Return a live device, (re)opening the port if needed."""
-    target = _resolve_port(port)
-    if target is None:
+    """Return a live device, probing/(re)opening the port if needed."""
+    candidates = _resolve_candidates(port)
+    if not candidates:
         raise RuntimeError(
             "No PPK2 port given, PPK2_PORT is unset, and autodetection found no "
             "device. Pass `port`, set PPK2_PORT, or plug in the PPK2."
         )
-    # Reopen if not connected or the caller asked for a different port.
-    if STATE.dev is None or (port and port != STATE.port):
-        STATE.close()
-        STATE.dev = _open(target)
-        STATE.port = target
-    return STATE.dev
+    # Reuse the existing connection unless the caller asked for a different port.
+    if STATE.dev is not None and (not port or port == STATE.port):
+        return STATE.dev
+
+    STATE.close()
+    errors: list[str] = []
+    for cand in candidates:
+        try:
+            STATE.dev = _open(cand)
+            STATE.port = cand
+            return STATE.dev
+        except Exception as e:  # not the control interface, or busy — try next
+            errors.append(f"{cand}: {e}")
+    raise RuntimeError(
+        "Could not open any PPK2 candidate port. Tried:\n  "
+        + "\n  ".join(errors)
+    )
 
 
 # --------------------------------------------------------------------------- #
